@@ -1,7 +1,7 @@
-public class CaixaBancario extends Thread {
+public class CaixaBancaria extends Thread {
     private ContaBancaria conta;
 
-    public CaixaBancario(ContaBancaria conta) {
+    public CaixaBancaria(ContaBancaria conta) {
         this.conta = conta;
     }
 

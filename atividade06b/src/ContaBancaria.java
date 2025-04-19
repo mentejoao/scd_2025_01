@@ -7,11 +7,11 @@ public class ContaBancaria {
         this.saldo = saldoInicial;
     }
 
-    public synchronized void sacar(double valor) {
+    public void sacar(double valor) {
         saldo -= valor;
     }
 
-    public synchronized void depositar(double valor) {
+    public void depositar(double valor) {
         saldo += valor;
     }
 
