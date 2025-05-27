@@ -1,7 +1,7 @@
 public class ComLock {
     public static void main(String[] args) {
-        ContaBancariaComLock conta = new ContaBancariaComLock(1234, 0.0);
-        Thread[] caixas = new Thread[20]; // Pode ser entre 10 a 30
+        ContaBancariaComLock conta = new ContaBancariaComLock(2603, 1000.0);
+        Thread[] caixas = new Thread[26]; // 10 < x < 30
 
         for (int i = 0; i < caixas.length; i++) {
             caixas[i] = new CaixaBancarioComLock(conta);

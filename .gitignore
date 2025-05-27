@@ -1,0 +1,9 @@
+*.class
+.idea/
+*.iml
+*.log
+*.zip
+*.csv
+out/
+bloqueios/
+provapt2/

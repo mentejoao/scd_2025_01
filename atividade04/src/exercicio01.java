@@ -24,7 +24,7 @@ public class exercicio01 {
 
         long fimTotal = System.currentTimeMillis();
         double tempoTotal = (fimTotal - inicioTotal) / 1000.0;
-        System.out.printf("\n⏱ Tempo TOTAL de execução: %.2f segundos\n", tempoTotal);
+        System.out.printf("\nTempo TOTAL de execução: %.2f segundos\n", tempoTotal);
 
         sc.close();
     }
@@ -32,7 +32,7 @@ public class exercicio01 {
     public static void executarIntervalo(int inicio, int fim, int numThreads, String nomeIntervalo)
             throws InterruptedException, ExecutionException {
 
-        System.out.printf("\n🔍 Intervalo %s) Números primos entre %,d e %,d:\n", nomeIntervalo, inicio, fim);
+        System.out.printf("\nIntervalo %s) Números primos entre %,d e %,d:\n", nomeIntervalo, inicio, fim);
 
         long inicioIntervalo = System.currentTimeMillis();
 
@@ -59,8 +59,8 @@ public class exercicio01 {
         long fimIntervalo = System.currentTimeMillis();
         double tempoIntervalo = (fimIntervalo - inicioIntervalo) / 1000.0;
 
-        System.out.println("✔️ Total de primos encontrados: " + primosTotais.size());
-        System.out.printf("⏱ Tempo para o intervalo %s: %.2f segundos\n", nomeIntervalo, tempoIntervalo);
+        System.out.println("Total de primos encontrados: " + primosTotais.size());
+        System.out.printf("Tempo para o intervalo %s: %.2f segundos\n", nomeIntervalo, tempoIntervalo);
     }
 
     public static List<Integer> encontrarPrimos(int inicio, int fim) {

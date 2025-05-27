@@ -15,7 +15,7 @@ public class ContaBancariaComLock {
         saldo += valor;
     }
 
-    public double getSaldo() {
+    public synchronized double getSaldo() {
         return saldo;
     }
 }

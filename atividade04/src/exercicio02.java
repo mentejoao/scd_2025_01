@@ -1,3 +1,4 @@
+import java.util.Scanner;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -7,17 +8,18 @@ import java.util.concurrent.atomic.AtomicInteger;
 public static int parallelSearch(int x, int[] A, int numThreads).
 
 a) Este método cria tantas threads quanto especificadas em numThreads, divide o array A em muitas partes e dá a cada thread parte do array para procurar sequencialmente pelo valor x.
+
 b) Se uma thread encontrar o valor x, então é retornado o índice i (A[i]=x), ao contrário -1.*/
-
-
 
 public class exercicio02 {
 
     public static int parallelSearch(int x, int[] A, int numThreads) throws InterruptedException {
+        int length = A.length;
+        numThreads = Math.min(numThreads, length); // ✅ Limita o número de threads
+
         ExecutorService executor = Executors.newFixedThreadPool(numThreads);
         AtomicInteger resultIndex = new AtomicInteger(-1);
         AtomicBoolean found = new AtomicBoolean(false);
-        int length = A.length;
         int chunkSize = (int) Math.ceil((double) length / numThreads);
 
         CountDownLatch latch = new CountDownLatch(numThreads);
@@ -39,21 +41,33 @@ public class exercicio02 {
             });
         }
 
-        latch.await();  // Espera todas as threads terminarem
-        executor.shutdownNow();  // Interrompe qualquer thread que ainda esteja rodando
+        latch.await();
+        executor.shutdownNow();
 
         return resultIndex.get();
     }
 
-    // Exemplo de uso
     public static void main(String[] args) throws InterruptedException {
-        int[] vetor = new int[1_000_000];
-        for (int i = 0; i < vetor.length; i++) {
-            vetor[i] = i;
+        Scanner scanner = new Scanner(System.in);
+
+        System.out.print("Digite a quantidade de elementos no array: ");
+        int tamanho = scanner.nextInt();
+        int[] vetor = new int[tamanho];
+
+        System.out.println("Digite os " + tamanho + " números inteiros separados por espaço:");
+        for (int i = 0; i < tamanho; i++) {
+            vetor[i] = scanner.nextInt();
         }
 
-        int valorProcurado = 789_456;
-        int numThreads = 8;
+        System.out.print("Digite o valor a ser procurado: ");
+        int valorProcurado = scanner.nextInt();
+
+        System.out.print("Digite o número de threads a serem usadas: ");
+        int numThreads = scanner.nextInt();
+
+        if (numThreads > tamanho) {
+            System.out.printf("Número de threads (%d) maior que o tamanho do array (%d). Ajustando...\n", numThreads, tamanho);
+        }
 
         long inicio = System.currentTimeMillis();
         int indice = parallelSearch(valorProcurado, vetor, numThreads);
@@ -65,6 +79,8 @@ public class exercicio02 {
             System.out.printf("❌ Valor %d não encontrado\n", valorProcurado);
         }
 
-        System.out.printf("⏱ Tempo de busca: %.2f segundos\n", (fim - inicio) / 1000.0);
+        System.out.printf("Tempo de busca: %.2f segundos\n", (fim - inicio) / 1000.0);
+
+        scanner.close();
     }
 }

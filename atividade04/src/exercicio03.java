@@ -18,7 +18,6 @@ public class exercicio03 {
     // Usado para registrar a ordem de chegada
     private static final List<String> colocacoes = new CopyOnWriteArrayList<>();
 
-    // Classe da lebre (Thread)
     static class Lebre extends Thread {
         private final String nome;
         private final Random random = new Random();
@@ -34,7 +33,7 @@ public class exercicio03 {
                 int pulo = random.nextInt(3) + 1; // de 1 a 3 metros
                 distanciaPercorrida += pulo;
                 pulos++;
-                System.out.printf("🐇 %s pulou %d metros (Total: %d)\n", nome, pulo,
+                System.out.printf("%s pulou %d metros (Total: %d)\n", nome, pulo,
                         Math.min(distanciaPercorrida, DISTANCIA_TOTAL));
                 Thread.yield(); // descansa
                 try {
@@ -50,7 +49,6 @@ public class exercicio03 {
     public static void main(String[] args) throws InterruptedException {
         Lebre[] lebres = new Lebre[NUM_LEBRES];
 
-        // Cria e inicia as threads
         for (int i = 0; i < NUM_LEBRES; i++) {
             lebres[i] = new Lebre("Lebre " + (i + 1));
             lebres[i].start();
@@ -61,18 +59,17 @@ public class exercicio03 {
             lebre.join();
         }
 
-        // Exibe o resultado
-        System.out.println("\n🏁 Resultado da Corrida:");
+        System.out.println("\nResultado da Corrida:");
         for (int i = 0; i < colocacoes.size(); i++) {
             String resultado = colocacoes.get(i);
             if (i == 0) {
-                System.out.printf("🥇 1º lugar: %s\n", resultado);
+                System.out.printf("1º lugar: %s\n", resultado);
             } else if (i == 1) {
-                System.out.printf("🥈 2º lugar: %s\n", resultado);
+                System.out.printf("2º lugar: %s\n", resultado);
             } else if (i == 2) {
-                System.out.printf("🥉 3º lugar: %s\n", resultado);
+                System.out.printf("3º lugar: %s\n", resultado);
             } else {
-                System.out.printf("   %dº lugar: %s\n", i + 1, resultado);
+                System.out.printf("%dº lugar: %s\n", i + 1, resultado);
             }
         }
     }
