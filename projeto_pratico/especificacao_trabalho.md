@@ -8,9 +8,9 @@ Professor responsável : ELIAS BATISTA FERREIRA
 Projetar, implementar e documentar um sistema distribuído em Java que use o Apache Kafka ou ActiveMQ como backbone de mensageria para processar eventos em tempo real, explorando tópicos, partições, etc.
 # 2. Cenário proposto
 Você fará parte da equipe de engenharia de uma plataforma de comércio eletrônico.
-● Serviço “Order‑Service” (produtor) publica em um tópico orders todos os pedidos confirmados.
-● Serviço “Inventory‑Service” (consumidor + produtor) consome orders, reserva estoque e publica resultado em inventory-events.
-● Serviço “Notification‑Service” (consumidor) lê inventory-events e envia e‑mails/SMS simulados.
+* Serviço “Order‑Service” (produtor) publica em um tópico orders todos os pedidos confirmados.
+* Serviço “Inventory‑Service” (consumidor + produtor) consome orders, reserva estoque e publica resultado em inventory-events.
+* Serviço “Notification‑Service” (consumidor) lê inventory-events e envia e‑mails/SMS simulados.
 # 3. Requisitos funcionais
 
 * RF‑1
