@@ -4,6 +4,7 @@
 *.log
 *.zip
 *.csv
+.vscode/
 out/
 bloqueios/
 provapt2/
