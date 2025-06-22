@@ -1,8 +1,16 @@
+## Git Ignore File ##
 HELP.md
 target/
 .mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/
+*.class
+*.log
+*.zip
+*.csv
+out/
+bloqueios/
+provapt2/
 
 ### STS ###
 .apt_generated
@@ -31,3 +39,4 @@ build/
 
 ### VS Code ###
 .vscode/
+
