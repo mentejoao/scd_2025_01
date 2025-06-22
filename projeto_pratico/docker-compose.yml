@@ -1,19 +1,121 @@
-version: '3.8'
+version: "3.8"
 
 services:
-  scylla-db:
-    image: scylladb/scylla
-    container_name: scylla-node
+  scylla:
+    image: scylladb/scylla:latest
+    container_name: scylla-node1
+    command:
+      - "--smp"
+      - "2"
+      - "--memory"
+      - "4G"
+      - "--overprovisioned"
+      - "1"
+      - "--api-address"
+      - "0.0.0.0"
+      - "--broadcast-rpc-address"
+      - "127.0.0.1"
     ports:
       - "9042:9042"
+      - "7000:7000"
+      - "9180:9180"
     volumes:
-      - scylla_data:/var/lib/scylla
-    command: --smp 2 --memory 2G # remover quando for para produção
+      - scylla-data:/var/lib/scylla
+    networks:
+      - app-network
     healthcheck:
-      test: ["CMD-SHELL", "cqlsh -e 'describe keyspaces'"]
+      test: ["CMD-SHELL", "cqlsh -e 'describe keyspaces' || exit 1"]
       interval: 15s
       timeout: 10s
       retries: 10
+      start_period: 30s
+
+  scylla-init:
+    image: scylladb/scylla:latest
+    depends_on:
+      scylla:
+        condition: service_healthy
+    volumes:
+      - ./init:/init
+    networks:
+      - app-network
+    entrypoint: >
+      bash -c "
+        cqlsh scylla-node1 -f /init/init.cql;
+      "
+
+  activemq:
+    image: apache/activemq-classic:latest
+    container_name: activemq
+    ports:
+      - "8161:8161"
+      - "61616:61616"
+    volumes:
+      - activemq-data:/opt/activemq/data
+    networks:
+      - app-network
+    depends_on:
+      scylla:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/activemq/bin/activemq-admin query --objname type=Broker,brokerName=localhost"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+  order-service:
+    build: ./OrderService
+    container_name: order-service
+    ports:
+      - "8080:8080"
+    networks:
+      - app-network
+    depends_on:
+      scylla-init:
+        condition: service_completed_successfully
+      activemq:
+        condition: service_healthy
+    environment:
+      - ACTIVEMQ_HOST=activemq
+      - ACTIVEMQ_PORT=61616
+
+  inventory-service:
+    build: ./InventoryService
+    container_name: inventory-service
+    ports:
+      - "8081:8081"
+    networks:
+      - app-network
+    depends_on:
+      scylla-init:
+        condition: service_completed_successfully
+      activemq:
+        condition: service_healthy
+    environment:
+      - SCYLLA_HOST=scylla-node1
+      - ACTIVEMQ_HOST=activemq
+      - ACTIVEMQ_PORT=61616
+
+  notification-service:
+    build: ./NotificationService
+    container_name: notification-service
+    ports:
+      - "8082:8082"
+    networks:
+      - app-network
+    depends_on:
+      scylla-init:
+        condition: service_completed_successfully
+      activemq:
+        condition: service_healthy
+    environment:
+      - ACTIVEMQ_HOST=activemq
+      - ACTIVEMQ_PORT=61616
 
 volumes:
-  scylla_data:
+  scylla-data:
+  activemq-data:
+
+networks:
+  app-network:
+    driver: bridge
