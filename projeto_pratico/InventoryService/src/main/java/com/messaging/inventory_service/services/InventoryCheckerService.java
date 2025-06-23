@@ -45,7 +45,20 @@ public class InventoryCheckerService {
     @Transactional
     public void checkInventoryEventQueue(OrderDTO orderEvent) {
         logger.info("Mensagem recebida da fila [orders]: {}", orderEvent.toString());
+        
+        // Idempotência
+        Optional<Response> existingResponse = responseRepository.findById(orderEvent.orderId());
+        if (existingResponse.isPresent()) {
+            logger.warn("Pedido com id {} já foi processado. Reenviando resposta anterior.", orderEvent.orderId());
+            publicResponse(existingResponse.get());
+            return;
+        }
+
         Response response = generateResponse(orderEvent);
+        responseRepository.save(response);
+        
+        logger.info("Resposta salva no banco de dados para o pedido {}", response.getOrderID());
+
         publicResponse(response);
     }
 
@@ -85,7 +98,7 @@ public class InventoryCheckerService {
             response.setOrderStatus(OrderStatus.FAILED);
             logger.info("Alguns itens não estão disponíveis. Pedido rejeitado.");
         }
-        responseRepository.save(response);
+
         return response;
     }
 
