@@ -1,6 +1,5 @@
-version: "3.8"
-
 services:
+
   scylla:
     image: scylladb/scylla:latest
     container_name: scylla-node1
@@ -41,12 +40,16 @@ services:
       - app-network
     entrypoint: >
       bash -c "
+        set -e
+        echo 'Aguardando ScyllaDB...';
         cqlsh scylla-node1 -f /init/init.cql;
+        echo 'Schema do ScyllaDB inicializado com sucesso.';
       "
 
   activemq:
-    image: apache/activemq-classic:latest
+    image: symptoma/activemq:5.17.2
     container_name: activemq
+    restart: unless-stopped
     ports:
       - "8161:8161"
       - "61616:61616"
@@ -58,16 +61,19 @@ services:
       scylla:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "/opt/activemq/bin/activemq-admin query --objname type=Broker,brokerName=localhost"]
-      interval: 15s
-      timeout: 10s
-      retries: 10
-      start_period: 30s
+      test: /opt/activemq/bin/activemq query --objname type=Broker,brokerName=*,service=Health | grep Good
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   order-service:
     build: ./OrderService
     container_name: order-service
     ports:
       - "8080:8080"
+    environment:
+      - SERVER_PORT=8080
+      - SPRING_ACTIVEMQ_BROKER_URL=tcp://activemq:61616
     networks:
       - app-network
     depends_on:
@@ -75,15 +81,18 @@ services:
         condition: service_completed_successfully
       activemq:
         condition: service_healthy
-    environment:
-      - ACTIVEMQ_HOST=activemq
-      - ACTIVEMQ_PORT=61616
 
   inventory-service:
     build: ./InventoryService
     container_name: inventory-service
     ports:
       - "8081:8081"
+    environment:
+      - SERVER_PORT=8081
+      - SPRING_DATA_CASSANDRA_CONTACT_POINTS=scylla-node1
+      - SPRING_DATA_CASSANDRA_PORT=9042
+      - SPRING_DATA_CASSANDRA_LOCAL_DATACENTER=datacenter1
+      - SPRING_ACTIVEMQ_BROKER_URL=tcp://activemq:61616
     networks:
       - app-network
     depends_on:
@@ -91,16 +100,15 @@ services:
         condition: service_completed_successfully
       activemq:
         condition: service_healthy
-    environment:
-      - SCYLLA_HOST=scylla-node1
-      - ACTIVEMQ_HOST=activemq
-      - ACTIVEMQ_PORT=61616
 
   notification-service:
     build: ./NotificationService
     container_name: notification-service
     ports:
       - "8082:8082"
+    environment:
+      - SERVER_PORT=8082
+      - SPRING_ACTIVEMQ_BROKER_URL=tcp://activemq:61616
     networks:
       - app-network
     depends_on:
@@ -108,9 +116,6 @@ services:
         condition: service_completed_successfully
       activemq:
         condition: service_healthy
-    environment:
-      - ACTIVEMQ_HOST=activemq
-      - ACTIVEMQ_PORT=61616
 
 volumes:
   scylla-data:
