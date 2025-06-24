@@ -2,7 +2,7 @@ CREATE KEYSPACE IF NOT EXISTS my_keyspace
 WITH REPLICATION = {
   'class': 'NetworkTopologyStrategy',
   'datacenter1': 1
-};
+} AND tablets = {'enabled': false};
 
 USE my_keyspace;
 
@@ -75,4 +75,3 @@ INSERT INTO itens (name, description, quantity_stock) VALUES ('Alexa', 'Assisten
 INSERT INTO itens (name, description, quantity_stock) VALUES ('Lâmpada Smart', 'Lâmpada inteligente RGB', 150);
 INSERT INTO itens (name, description, quantity_stock) VALUES ('Tomada Inteligente', 'Tomada smart com Wi-Fi', 100);
 INSERT INTO itens (name, description, quantity_stock) VALUES ('Controle Remoto IR', 'Controle universal Wi-Fi', 80);
-

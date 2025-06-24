@@ -4,7 +4,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jms.annotation.JmsListener;
 import org.springframework.jms.core.JmsTemplate;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import com.messaging.inventory_service.models.Item;
 import com.messaging.inventory_service.models.ItemUDT;
@@ -20,7 +19,9 @@ import com.messaging.inventory_service.repositories.ResponseRepository;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -42,23 +43,22 @@ public class InventoryCheckerService {
     private static final Logger logger = LoggerFactory.getLogger(InventoryCheckerService.class);
 
     @JmsListener(destination = LISTENER_QUEUE)
-    @Transactional
     public void checkInventoryEventQueue(OrderDTO orderEvent) {
         logger.info("Mensagem recebida da fila [orders]: {}", orderEvent.toString());
-        
-        // Idempotência
+
+        // idempotência
         Optional<Response> existingResponse = responseRepository.findById(orderEvent.orderId());
         if (existingResponse.isPresent()) {
             logger.warn("Pedido com id {} já foi processado. Reenviando resposta anterior.", orderEvent.orderId());
             publicResponse(existingResponse.get());
             return;
         }
-
-        Response response = generateResponse(orderEvent);
-        responseRepository.save(response);
         
+        Response response = generateResponse(orderEvent);
+        
+        responseRepository.save(response);
         logger.info("Resposta salva no banco de dados para o pedido {}", response.getOrderID());
-
+        
         publicResponse(response);
     }
 
@@ -66,63 +66,97 @@ public class InventoryCheckerService {
         Response response = new Response();
         response.setOrderID(orderEvent.orderId());
         response.setTimestamp(orderEvent.timestamp());
-        logger.info("Checando estoque para a order com id: {}", orderEvent.orderId().toString());
+        logger.info("Checando estoque para o pedido com id: {}", orderEvent.orderId());
+
+        List<String> itemNames = orderEvent.items().stream().map(ItemOrderDTO::itemName).toList();
+
+        Map<String, Item> itemsFromDB = itemRepository.findByNameIn(itemNames)
+                .stream()
+                .collect(Collectors.toMap(Item::getName, item -> item));
 
         for (ItemOrderDTO itemOrder : orderEvent.items()) {
-            //TODO: Revisar como extinguir multiplas consultas ao banco de dados
-            Optional<Item> item = itemRepository.findById(itemOrder.itemName());
+            Item item = itemsFromDB.get(itemOrder.itemName());
             StockStatus stockStatus = checkStock(item, itemOrder);
-            
 
             if (stockStatus == StockStatus.IN_STOCK) {
-                ItemUDT itemBanco = new ItemUDT(item.get().getName(),
-                        item.get().getDescription(), item.get().getQuantityStock());
-                response.getListaEstoqueDisponivel().add(itemBanco);
-            }
-
+                response.getListaEstoqueDisponivel().add(new ItemUDT(item.getName(), item.getDescription(), item.getQuantityStock() - itemOrder.quantity()));
+            } 
+            
             if (stockStatus == StockStatus.OUT_OF_STOCK) {
-                ItemUDT itemBanco = new ItemUDT(item.get().getName(),
-                        item.get().getDescription(), item.get().getQuantityStock());
-                response.getListaEstoqueIndisponivel().add(itemBanco);
-            }
-
+                response.getListaEstoqueIndisponivel().add(new ItemUDT(item.getName(), item.getDescription(), item.getQuantityStock()));
+            } 
+            
             if (stockStatus == StockStatus.NON_EXISTENT) {
                 response.getListaEstoqueInexistente().add(itemOrder.itemName());
             }
         }
+
         if (response.getListaEstoqueIndisponivel().isEmpty() && response.getListaEstoqueInexistente().isEmpty()) {
-            response.setOrderStatus(OrderStatus.SUCCESS);
-            updateStock(response.getListaEstoqueDisponivel(), orderEvent.items());
-            logger.info("Todos os itens estão disponíveis. Pedido aprovado.");
+            boolean stockUpdatedSuccessfully = updateStockAtomically(response.getListaEstoqueDisponivel(), orderEvent.items());
+
+            if (stockUpdatedSuccessfully) {
+                response.setOrderStatus(OrderStatus.SUCCESS);
+                logger.info("Todos os itens estão disponíveis e o estoque foi atualizado. Pedido aprovado.");
+            } else {
+                response.setOrderStatus(OrderStatus.FAILED);
+                logger.error("Falha ao atualizar o estoque atomicamente devido a concorrência. Pedido rejeitado.");
+            }
         } else {
             response.setOrderStatus(OrderStatus.FAILED);
-            logger.info("Alguns itens não estão disponíveis. Pedido rejeitado.");
+            logger.info("Alguns itens não estão disponíveis ou não existem. Pedido rejeitado.");
         }
-
+        
         return response;
     }
 
-    private void updateStock(List<ItemUDT> itemsStock, List<ItemOrderDTO> itemsOrder) {
-        for (int i = 0; i < itemsStock.size(); i++) {
-            ItemUDT item = itemsStock.get(i);
+    private boolean updateStockAtomically(List<ItemUDT> itemsInStock, List<ItemOrderDTO> itemsOrder) {
+        List<Item> successfullyUpdatedItems = new ArrayList<>();
+        
+        for (int i = 0; i < itemsInStock.size(); i++) {
+            ItemUDT itemStock = itemsInStock.get(i);
             ItemOrderDTO itemOrder = itemsOrder.get(i);
-            item.setQuantityStock(item.getQuantityStock() - itemOrder.quantity());
-            Item itemSalvar = new Item(item.getName(), item.getDescription(), item.getQuantityStock());
-            itemRepository.save(itemSalvar);
-            logger.info("Estoque atualizado para o item: {}. Nova quantidade em estoque: {}",
-                    item.getName(), item.getQuantityStock());
+            
+            int newQuantity = itemStock.getQuantityStock() - itemOrder.quantity();
+            
+            boolean wasApplied = itemRepository.updateStockWithLWT(
+                itemStock.getName(),
+                newQuantity,
+                itemStock.getQuantityStock()
+            );
+
+            if (wasApplied) {
+                logger.info("Estoque atualizado para o item: {}. Nova quantidade: {}", itemStock.getName(), newQuantity);
+
+                successfullyUpdatedItems.add(new Item(itemStock.getName(), itemStock.getDescription(), itemOrder.quantity()));
+            } else {
+                logger.error("Falha para o item: {}. Outra transação pode ter alterado o estoque. Iniciando compensação.", itemStock.getName());
+                compensateStockUpdate(successfullyUpdatedItems);
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private void compensateStockUpdate(List<Item> itemsToCompensate) {
+        logger.warn("Iniciando processo de compensação para {} itens.", itemsToCompensate.size());
+        for (Item item : itemsToCompensate) {
+            Optional<Item> currentItem = itemRepository.findById(item.getName());
+            if (currentItem.isPresent()) {
+                Item itemToRollback = currentItem.get();
+                itemToRollback.setQuantityStock(itemToRollback.getQuantityStock() + item.getQuantityStock());
+                itemRepository.save(itemToRollback);
+                logger.info("Compensação: Estoque do item {} revertido.", item.getName());
+            }
         }
     }
 
-    private StockStatus checkStock(Optional<Item> item, ItemOrderDTO itemOrderDTO) {
-        if (item.isPresent()) {
-            if (itemOrderDTO.quantity() > item.get().getQuantityStock()) {
-                logger.info("Item {} não disponível em estoque. Quantidade solicitada: {}, quantidade disponível: {}",
-                        itemOrderDTO.itemName(), itemOrderDTO.quantity(), item.get().getQuantityStock());
+    private StockStatus checkStock(Item item, ItemOrderDTO itemOrderDTO) {
+        if (item != null) {
+            if (itemOrderDTO.quantity() > item.getQuantityStock()) {
+                logger.info("Item {} não disponível em estoque. Solicitado: {}, Disponível: {}", itemOrderDTO.itemName(), itemOrderDTO.quantity(), item.getQuantityStock());
                 return StockStatus.OUT_OF_STOCK;
             }
-            logger.info("Item {} disponível em estoque. Quantidade solicitada: {}, quantidade disponível: {}",
-                    itemOrderDTO.itemName(), itemOrderDTO.quantity(), item.get().getQuantityStock());
+            logger.info("Item {} disponível em estoque. Solicitado: {}, Disponível: {}", itemOrderDTO.itemName(), itemOrderDTO.quantity(), item.getQuantityStock());
             return StockStatus.IN_STOCK;
         }
         logger.info("Item {} não encontrado.", itemOrderDTO.itemName());
@@ -158,6 +192,4 @@ public class InventoryCheckerService {
             response.getOrderStatus().toString()
         );
     }
-
-
 }
