@@ -1,0 +1,130 @@
+services:
+
+  scylla:
+    image: scylladb/scylla:latest
+    container_name: scylla-node1
+    command:
+      - "--smp"
+      - "2"
+      - "--memory"
+      - "4G"
+      - "--overprovisioned"
+      - "1"
+      - "--api-address"
+      - "0.0.0.0"
+      - "--broadcast-rpc-address"
+      - "127.0.0.1"
+    ports:
+      - "9042:9042"
+      - "7000:7000"
+      - "9180:9180"
+    volumes:
+      - scylla-data:/var/lib/scylla
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD-SHELL", "cqlsh -e 'describe keyspaces' || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+
+  scylla-init:
+    image: scylladb/scylla:latest
+    depends_on:
+      scylla:
+        condition: service_healthy
+    volumes:
+      - ./init:/init
+    networks:
+      - app-network
+    entrypoint: >
+      bash -c "
+        set -e
+        if cqlsh scylla-node1 -e \"DESCRIBE KEYSPACE my_keyspace\" > /dev/null 2>&1; then
+          echo 'Keyspace já existe. Pulando a inicialização do schema.'
+        else
+          echo 'Keyspace não encontrado. Inicializando o schema do ScyllaDB...'
+          cqlsh scylla-node1 -f /init/init.cql
+          echo 'Schema do ScyllaDB inicializado com sucesso.'
+        fi
+      "
+
+  activemq:
+    image: symptoma/activemq:5.17.2
+    container_name: activemq
+    restart: unless-stopped
+    ports:
+      - "8161:8161"
+      - "61616:61616"
+    volumes:
+      - activemq-data:/opt/activemq/data
+    networks:
+      - app-network
+    depends_on:
+      scylla:
+        condition: service_healthy
+    healthcheck:
+      test: /opt/activemq/bin/activemq query --objname type=Broker,brokerName=*,service=Health | grep Good
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  order-service:
+    build: ./OrderService
+    container_name: order-service
+    ports:
+      - "8080:8080"
+    environment:
+      - SERVER_PORT=8080
+      - SPRING_ACTIVEMQ_BROKER_URL=tcp://activemq:61616
+    networks:
+      - app-network
+    depends_on:
+      scylla-init:
+        condition: service_completed_successfully
+      activemq:
+        condition: service_healthy
+
+  inventory-service:
+    build: ./InventoryService
+    container_name: inventory-service
+    ports:
+      - "8081:8081"
+    environment:
+      - SERVER_PORT=8081
+      - SPRING_DATA_CASSANDRA_CONTACT_POINTS=scylla-node1
+      - SPRING_DATA_CASSANDRA_PORT=9042
+      - SPRING_DATA_CASSANDRA_LOCAL_DATACENTER=datacenter1
+      - SPRING_ACTIVEMQ_BROKER_URL=tcp://activemq:61616
+    networks:
+      - app-network
+    depends_on:
+      scylla-init:
+        condition: service_completed_successfully
+      activemq:
+        condition: service_healthy
+
+  notification-service:
+    build: ./NotificationService
+    container_name: notification-service
+    ports:
+      - "8082:8082"
+    environment:
+      - SERVER_PORT=8082
+      - SPRING_ACTIVEMQ_BROKER_URL=tcp://activemq:61616
+    networks:
+      - app-network
+    depends_on:
+      scylla-init:
+        condition: service_completed_successfully
+      activemq:
+        condition: service_healthy
+
+volumes:
+  scylla-data:
+  activemq-data:
+
+networks:
+  app-network:
+    driver: bridge
