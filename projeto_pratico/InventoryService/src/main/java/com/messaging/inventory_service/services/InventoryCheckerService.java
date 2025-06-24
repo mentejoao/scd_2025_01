@@ -79,7 +79,7 @@ public class InventoryCheckerService {
             StockStatus stockStatus = checkStock(item, itemOrder);
 
             if (stockStatus == StockStatus.IN_STOCK) {
-                response.getListaEstoqueDisponivel().add(new ItemUDT(item.getName(), item.getDescription(), item.getQuantityStock() - itemOrder.quantity()));
+                response.getListaEstoqueDisponivel().add(new ItemUDT(item.getName(), item.getDescription(), item.getQuantityStock()));
             } 
             
             if (stockStatus == StockStatus.OUT_OF_STOCK) {
@@ -96,6 +96,13 @@ public class InventoryCheckerService {
 
             if (stockUpdatedSuccessfully) {
                 response.setOrderStatus(OrderStatus.SUCCESS);
+                
+                for (int i = 0; i < response.getListaEstoqueDisponivel().size(); i++) {
+                    ItemUDT itemUDT = response.getListaEstoqueDisponivel().get(i);
+                    ItemOrderDTO itemOrder = orderEvent.items().get(i);
+                    itemUDT.setQuantityStock(itemUDT.getQuantityStock() - itemOrder.quantity());
+                }
+                
                 logger.info("Todos os itens estão disponíveis e o estoque foi atualizado. Pedido aprovado.");
             } else {
                 response.setOrderStatus(OrderStatus.FAILED);
