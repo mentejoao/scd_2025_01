@@ -17,7 +17,7 @@ public class NotificationService {
 
     private static final String LISTENER_QUEUE = "inventory-events";
     private static final Logger logger = LoggerFactory.getLogger(NotificationService.class);
-    
+
     public static final String ANSI_RESET = "\u001B[0m";
     public static final String ANSI_RED = "\u001B[31m";
     public static final String ANSI_GREEN = "\u001B[32m";

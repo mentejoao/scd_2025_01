@@ -61,17 +61,12 @@ class WebhookNotificationService:
     
     def add_webhook_notifications_to_session(self, notifications_list: List[Notification]) -> int:
         """Adiciona notificações do webhook à lista de notificações da sessão"""
-        print("🔄 Verificando notificações webhook...")
         webhook_notifications = self.fetch_latest_notifications()
         
         if webhook_notifications:
-            print(f"Encontradas {len(webhook_notifications)} notificações webhook")
             new_notifications = self.convert_to_streamlit_notifications(webhook_notifications)
             notifications_list.extend(new_notifications)
-            print(f"Adicionadas {len(new_notifications)} notificações à sessão")
             return len(new_notifications)
-        else:
-            print("ℹNenhuma notificação webhook encontrada")
         
         return 0
     

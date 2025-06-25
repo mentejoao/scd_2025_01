@@ -70,6 +70,19 @@ services:
       timeout: 5s
       retries: 5
 
+  frontend-orders:
+    build: ./frontend-orders
+    container_name: frontend-orders
+    ports:
+      - "8501:8501"
+    networks:
+      - app-network
+    depends_on:
+      scylla-init:
+        condition: service_completed_successfully
+      activemq:
+        condition: service_healthy
+
   order-service:
     build: ./OrderService
     container_name: order-service

@@ -8,7 +8,6 @@ HELP.md
 *.class
 *.log
 *.zip
-*.csv
 out/
 bloqueios/
 provapt2/

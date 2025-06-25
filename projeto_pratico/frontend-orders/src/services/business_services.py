@@ -139,7 +139,7 @@ class OrderServiceInterface(ABC):
 class OrderService(OrderServiceInterface):
     """Serviço para operações de pedidos"""
     
-    def __init__(self, api_base_url: str = "http://localhost:8080"):
+    def __init__(self, api_base_url: str = "http://127.0.0.1:8080/orders"):
         self._api_base_url = api_base_url
         self._orders_endpoint = f"{api_base_url}/orders"
     

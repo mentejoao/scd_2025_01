@@ -15,10 +15,8 @@ from streamlit_autorefresh import st_autorefresh
 
 def main():
     """Função principal da aplicação"""
-    print("Iniciando aplicação Streamlit...")
     
     SessionStateManager.initialize_session_state()
-    print("Session state inicializado")
     
     app_controller = get_application()
     
@@ -37,25 +35,16 @@ def main():
     
     try:
         from src.services.webhook_notification_service import WebhookNotificationService, NotificationPollingService
-        print("Carregando serviços de webhook...")
         
         webhook_service = WebhookNotificationService()
         polling_service = NotificationPollingService(webhook_service)
-        
-        # Verificar status do servidor webhook
-        if webhook_service.check_server_health():
-            print("Servidor webhook está ativo")
-        else:
-            print("Servidor webhook está offline")
         
         # Auto-refresh a cada 3 segundos para polling contínuo de notificações
         # Isso garante que notificações apareçam automaticamente sem interação manual
         refresh_count = st_autorefresh(interval=3000, key="notification_polling")
         
         # Verificar notificações webhook automaticamente
-        print(f"Verificação de notificações webhook (refresh #{refresh_count})...")
         polling_service.poll_and_update_notifications(notifications)
-        print(f"Total de notificações na sessão: {len(notifications)}")
             
     except Exception as e:
         print(f"Erro ao carregar serviços webhook: {e}")

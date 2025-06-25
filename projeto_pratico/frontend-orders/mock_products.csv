@@ -1,0 +1,7 @@
+nome,imagem,descricao,quantidade_stock
+Teclado,assets/teclado.png,Teclado mecânico com RGB,150
+Mouse,assets/mouse.png,Mouse gamer com DPI ajustável,300
+Monitor,assets/monitor.png,Monitor 24" Full HD,75
+Notebook,assets/notebook.png,Notebook com 16GB RAM e SSD 512GB,40
+Headset,assets/headset.png,Headset com cancelamento de ruído,120
+Webcam,assets/webcam.png,Webcam 1080p com microfone,80
