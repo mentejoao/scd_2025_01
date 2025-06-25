@@ -1,11 +1,12 @@
-## Estrutura do Repositório
-```atividades```: ```tarefas relacionadas a disciplina```
+# Estrutura do Repositório
 
-```projeto_pratico```: ```trabalho final da disciplina```
+* #### 📁 [`atividades`](https://github.com/mentejoao/scd_2025_01/tree/main/atividades): tarefas relacionadas a disciplina
+* #### 📁 [`projeto_pratico`](https://github.com/mentejoao/scd_2025_01/tree/main/projeto_pratico): projeto final da disciplina
 
 ## Projeto Prático
 ```
 Integrantes:
+
 João Gabriel Cavalcante França - 202201695
 Joseppe Pedro Cunha Fellini - 202300194
 Mauro Sérgio do Nascimento Junior - 202204842
@@ -26,8 +27,7 @@ projeto_pratico/
 ## Como Executar o Projeto
 
 ### Pré-requisitos
-- Docker
-- Docker Compose
+- Docker & Docker Compose
 
 ### Execução
 ```bash
@@ -250,6 +250,29 @@ CREATE TABLE responses (
 ```
 
 * O banco vem pré-populado com produtos como: Teclado, Mouse, Monitor, Notebook, Headset, Webcam, etc.
+
+## Respostas
+### Matriz de Rastreabilidade - Requisitos Funcionais
+| RF | DESCRIÇÃO | FILE_PATH |
+|---|---|---|
+| RF-01 | Criar fila orders | [OrderService.java](https://github.com/mentejoao/scd_2025_01/blob/main/projeto_pratico/OrderService/src/main/java/com/messaging/order_service/services/OrderService.java#L45-L51) |
+| RF-01 | Criar fila inventory-events | [InventoryCheckerService.java](https://github.com/mentejoao/scd_2025_01/blob/main/projeto_pratico/InventoryService/src/main/java/com/messaging/inventory_service/services/InventoryCheckerService.java#L173-L182) |
+| RF-02 | Order-Service expõe uma REST API (POST /orders) que gera um UUID, timestamp e lista de itens | [OrderController.java](https://github.com/mentejoao/scd_2025_01/blob/main/projeto_pratico/OrderService/src/main/java/com/messaging/order_service/controllers/OrderController.java#L32-L41) |
+| RF-03 | Inventory-Service processa mensagens em ordem e publica sucesso ou falha (sem estoque) | [InventoryCheckerService.java](https://github.com/mentejoao/scd_2025_01/blob/main/projeto_pratico/InventoryService/src/main/java/com/messaging/inventory_service/services/InventoryCheckerService.java) |
+| RF-04 | Notification-Service registra no console a notificação enviada | [NotificationService.java](https://github.com/mentejoao/scd_2025_01/blob/main/projeto_pratico/NotificationService/src/main/java/com/messaging/notification/service/NotificationServiceApplication.java) |
+
+### Requisitos Não Funcionais
+#### 1. ```Escalabilidade – Explique como você poderia conseguir escalabilidade com o Broker utilizado?``` 
+É necessário distribuir a carga entre múltiplas instâncias do broker e dos serviços consumidores, isto é, utilizar um cluster com vários ActiveMQs, garantindo que, se uma instância falhar, as demais continuem operando. Além disso, em vez de um único consumidor processando mensagens, é possível ter várias instâncias trabalhando em paralelo, aumentando a capacidade de processamento. A utilização de um pool de conexões também melhora o desempenho, mantendo conexões abertas e evitando o custo de abertura e fechamento constante.
+
+#### 2. ```Tolerância à falha – O que significa? Explique uma situação de falha que poderia ocorrer e como o Broker poderia tratá-la.```
+Tolerância à falha significa que um sistema é capaz de continuar funcionando mesmo quando ocorrem problemas em partes dele. Se o ActiveMQ estiver configurado em modo de cluster com failover, outro broker automaticamente assume a função do que caiu. Além disso, se os consumidores (serviços que recebem as mensagens) estiverem configurados com conexão de failover, eles tentarão se reconectar automaticamente a outro broker disponível, sem perder as mensagens. 
+
+#### 3. ```Idempotência - Explique esse conceito e como fazer para garanti-lo.```
+Idempotência é o conceito segundo o qual uma mesma operação pode ser executada várias vezes com o mesmo efeito da primeira execução. Em sistemas distribuídos (como filas com ActiveMQ), pode acontecer de uma mensagem ser reenviada - por exemplo, se o consumidor falhar logo após processar a mensagem, mas antes de confirmar o processamento. Nesse caso, o broker pode reenviar a mesma mensagem, e o serviço precisa estar preparado para não processar duas vezes algo que deveria acontecer só uma vez, como um pagamento ou a criação de um pedido.
+
+
+
 
 
 
